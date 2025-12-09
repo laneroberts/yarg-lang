@@ -184,12 +184,25 @@ static TokenType identifierType() {
             if (scanner.current - scanner.start > 1) {
                 switch (scanner.start[1]) {
                     case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
-                    case 'o': return checkKeyword(2, 3, "nst", TOKEN_CONST);
+                    case 'o': 
+                        if (scanner.current - scanner.start > 2) {
+                            switch (scanner.start[2]) {
+                                case 'm': return checkKeyword(3, 4, "pile", TOKEN_COMPILE);
+                                case 'n': return checkKeyword(3, 2, "st", TOKEN_CONST);
+                            }
+                        }
                     case 'p': return checkKeyword(2, 3, "eek", TOKEN_CPEEK);
                 }
             }
             break;
-        case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+        case 'e': 
+            if (scanner.current - scanner.start > 1) {
+                switch (scanner.start[1]) {
+                    case 'l': return checkKeyword(2, 2, "se", TOKEN_ELSE);
+                    case 'x': return checkKeyword(2, 2, "ec", TOKEN_EXEC);
+                }
+            }
+            break;
         case 'f':
             if (scanner.current - scanner.start > 1) {
                 switch (scanner.start[1]) {
@@ -270,6 +283,7 @@ static TokenType identifierType() {
                     case 'e': 
                         if (scanner.current - scanner.start > 2) {
                             switch (scanner.start[2]) {
+                                case 'a': return checkKeyword(3, 8, "d_source", TOKEN_READ_SOURCE);
                                 case 'c': return checkKeyword(3, 4, "eive", TOKEN_RECEIVE);                                
                                 case 's': return checkKeyword(3, 3, "ume", TOKEN_RESUME);
                                 case 't': return checkKeyword(3, 3, "urn", TOKEN_RETURN);

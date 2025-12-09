@@ -20,6 +20,12 @@ bool importBuiltinDummy(ObjRoutine* routineContext, int argCount, Value* result)
     return true;
 }
 
+bool execBuiltinDummy(ObjRoutine* routineContext, int argCount, Value* result) {
+    *result = NIL_VAL;
+    return true;
+}
+
+
 static char* libraryNameFor(const char* importname) {
     size_t namelen = strlen(importname);
     char* filename = malloc(namelen + 3 + 1);
@@ -85,6 +91,88 @@ bool importBuiltin(ObjRoutine* routineContext, int argCount) {
         return false;
     }
 
+}
+
+bool readSourceBuiltin(ObjRoutine* routineContext, int argCount, Value* result) {
+    if (argCount != 1) {
+        runtimeError(routineContext, "Expected 1 argument but got %d.", argCount);
+        return false;
+    }
+    if (!IS_STRING(nativeArgument(routineContext, argCount, 0))) {
+        runtimeError(routineContext, "Argument to read_source must be string.");
+        return false;
+    }
+
+    const char* filename = AS_CSTRING(nativeArgument(routineContext, argCount, 0));
+    char* source = readFile(filename);
+    if (source == NULL) {
+        runtimeError(routineContext, "Could not read source file '%s'.", filename);
+        return false;
+    }
+
+    ObjString* sourceString = copyString(source, (int)strlen(source));
+    free(source);
+
+    *result = OBJ_VAL(sourceString);
+    return true;
+}
+
+bool compileBuiltin(ObjRoutine* routineContext, int argCount, Value* result) {
+    if (argCount != 1) {
+        runtimeError(routineContext, "Expected 1 argument but got %d.", argCount);
+        return false;
+    }
+    if (!IS_STRING(nativeArgument(routineContext, argCount, 0))) {
+        runtimeError(routineContext, "Argument to compile must be string.");
+        return false;
+    }
+
+    const char* source = AS_CSTRING(nativeArgument(routineContext, argCount, 0));
+    ObjFunction* function = compile(source);
+    if (function == NULL) {
+        runtimeError(routineContext, "Compile error; compiling source failed.");
+        return false;
+    }
+
+    tempRootPush(OBJ_VAL(function));
+    ObjClosure* closure = newClosure(function);
+    tempRootPop();
+
+    *result = OBJ_VAL(closure);
+    return true;
+}
+
+bool execBuiltin(ObjRoutine* routineContext, int argCount) {
+    if (argCount != 1) {
+        runtimeError(routineContext, "Expected 1 arguments but got %d.", argCount);
+        return false;
+    }
+    if (!IS_STRING(peek(routineContext, 0))) {
+        runtimeError(routineContext, "Argument to exec must be string.");
+        return false;
+    }
+
+    char* source = AS_CSTRING(peek(routineContext, 0));
+    ObjFunction* function = compile(source);
+    if (function == NULL) {
+        runtimeError(routineContext, "Interpret error; compiling source failed.");
+        return false;
+    }
+
+    tempRootPush(OBJ_VAL(function));
+
+    Value sourceVal = pop(routineContext);
+    tempRootPush(sourceVal);
+    pop(routineContext);
+
+    ObjClosure* closure = newClosure(function);
+    push(routineContext, OBJ_VAL(closure));
+
+    tempRootPop();
+    tempRootPop();
+
+    callfn(routineContext, closure, 0);
+    return true;
 }
 
 bool makeChannelBuiltin(ObjRoutine* routine, int argCount, Value* result) {
@@ -679,6 +767,9 @@ Value getBuiltin(uint8_t builtin) {
     switch (builtin) {
         case BUILTIN_PEEK: return OBJ_VAL(newNative(peekBuiltin));
         case BUILTIN_IMPORT: return OBJ_VAL(newNative(importBuiltinDummy));
+        case BUILTIN_READ_SOURCE: return OBJ_VAL(newNative(readSourceBuiltin));
+        case BUILTIN_EXEC: return OBJ_VAL(newNative(execBuiltinDummy));
+        case BUILTIN_COMPILE: return OBJ_VAL(newNative(compileBuiltin));
         case BUILTIN_MAKE_ROUTINE: return OBJ_VAL(newNative(makeRoutineBuiltin));
         case BUILTIN_RESUME: return OBJ_VAL(newNative(resumeBuiltin));
         case BUILTIN_START: return OBJ_VAL(newNative(startBuiltin));
